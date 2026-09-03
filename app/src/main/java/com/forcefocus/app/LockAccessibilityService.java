@@ -85,7 +85,7 @@ public class LockAccessibilityService extends AccessibilityService {
         escapeInfo=t("",16,WHITE(),false);
         hero.addView(title);
         hero.addView(time);
-        hero.addView(tescapeInfo);
+        hero.addView(escapeInfo);
         root.addView(hero, matchMargin());
 
         LinearLayout descCard=new LinearLayout(this);
@@ -102,16 +102,16 @@ public class LockAccessibilityService extends AccessibilityService {
 
         LinearLayout row=new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        Button dial=actionBtn("通衽", BROWN, WHITE());
+        Button dial=actionBtn("通话", BROWN, WHITE());
         dial.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(Exception ignored){}});
         Button escape=actionBtn("提前解除", BROWN, WHITE());
         final Handler h=new Handler(Looper.getMainLooper()); final Runnable[] r=new Runnable[1];
         r[0]=()->{LockState.Session s=LockState.current(this); if(s!=null){boolean ok=LockState.useEscape(this,s.end);Toast.makeText(this,ok?"已解除":"本周机会用完",Toast.LENGTH_LONG).show();enforce(lastPkg);}};
-        escape.setOnTouchListener((2,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN){h.postDelayed(r[0],8000);escape.setText("按住 8 秒");return true;} if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL){h.removeCallbacks(r[0]);escape.setText("提前解除");return true;}return false;});
+        escape.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN){h.postDelayed(r[0],8000);escape.setText("按住 8 秒");return true;} if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL){h.removeCallbacks(r[0]);escape.setText("提前解除");return true;}return false;});
         row.addView(dial, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        LinearLayout.LayoutParams eL_p=new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        e_lp.setMargins(dp(8),0,0,0);
-        row.addView(escape, e_lp);
+        LinearLayout.LayoutParams eLp=new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        eLp.setMargins(dp(8),0,0,0);
+        row.addView(escape, eLp);
         root.addView(row, matchMargin());
 
         overlay=frame;
@@ -119,7 +119,7 @@ public class LockAccessibilityService extends AccessibilityService {
 
     void populateApps(Mode m){
         apps.removeAllViews();
-        if(m.allowed.isEmpty())return;
+        if(m.allowed.isEmpty()) return;
         LinearLayout card=new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(18),dp(18),dp(18),dp(18));
