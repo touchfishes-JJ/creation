@@ -157,7 +157,12 @@ public final class FocusState {
         Calendar calendar = Calendar.getInstance();
         calendar.setFirstDayOfWeek(Calendar.MONDAY);
         calendar.setMinimalDaysInFirstWeek(4);
-        return calendar.getWeekYear() + "-W" + calendar.get(Calendar.WEEK_OF_YEAR);
+        int daysSinceMonday = (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7;
+        calendar.add(Calendar.DAY_OF_MONTH, -daysSinceMonday);
+        return String.format(Locale.US, "%04d-%02d-%02d",
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH));
     }
 
     public static synchronized int getEarlyRemaining(Context context) {
