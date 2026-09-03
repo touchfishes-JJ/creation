@@ -207,7 +207,6 @@ public class MainActivity extends Activity {
         }
 
         if(pageSettings != null){
-            // recolor task cards
             for(int i=0;i<pageSettings.getChildCount();i++){
                 View child = pageSettings.getChildAt(i);
                 if(!(child instanceof LinearLayout)) continue;
