@@ -1,0 +1,154 @@
+  function setWheelValue(state,v){
+    if(!state.values.includes(v))return;
+    state.value=v; state.render();
+  }
+  const hourWheelState=createLoopWheel("#hourWheel","#hourTrack",[0,1,2,3,4],1);
+  const minuteWheelState=createLoopWheel("#minuteWheel","#minuteTrack",Array.from({length:60},(_,i)=>i),0);
+ toast("已选择："+currentTask);
+  }));
+
+  $("#hamb").addEventListener("click",e=>{e.stopPropagation();$("#drawer").classList.add("open")});
+  $("#drawer").addEventListener("click",e=>{if(e.target.id==="drawer")$("#drawer").classList.remove("open")});
+  function openModal(html){$("#modalPanel").innerHTML=html;$("#modal").classList.add("open");const c=$("#modalPanel .close");if(c)c.onclick=()=>$("#modal").classList.remove("open")}
+  $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")$("#modal").classList.remove("open")});
+  $("#settingsBtn").addEventListener("click",()=>{
+    $("#drawer").classList.remove("open");
+    openModal('<button class="close">×</button><h3>设置</h3><button id="a11y">无障碍</button><button id="alarm">闹钟 / 精确闹钟</button>');
+    $("#a11y").onclick=()=>{if(window.NativeBridge)NativeBridge.openAccessibilitySettings();else toast("请在系统设置中开启无障碍");};
+    $("#alarm").onclick=()=>{if(window.NativeBridge)NativeBridge.openExactAlarmSettings();else toast("请允许精确闹钟");};
+  });
+  $("#sidebarWhitelistBtn").addEventListener("click",()=>{
+    $("#drawer").classList.remove("open");
+    const apps=[...new Set(Object.values(taskApps).flat())];
+    openModal('<button class="close">×</button><h3>白名单</h3>'+apps.map(x=>'<button class="wlapp" data-app="'+x+'">'+x+'</button>').join(""));
+    $$(".wlapp").forEach(b=>b.onclick=()=>{if(window.NativeBridge)NativeBridge.launchApp(b.dataset.app);else toast("打开 "+b.dataset.app)});
+  });
+
+  $("#memoryBtn").addEventListener("click",()=>{
+    openModal('<button class="close">×</button><h3>最近三次时长</h3>'+recent.map(x=>{const [hh,mm]=x.split(":");return '<button class="mem" data-v="'+x+'">'+parseInt(hh)+' h  '+mm+' min</button>'}).join(""));
+    $$(".mem").forEach(b=>b.onclick=()=>{
+      const [h,m]=b.dataset.v.split(":"); setWheelValue(hourWheelState, parseInt(h)); setWheelValue(minuteWheelState, parseInt(m)); $("#modal").classList.remove("open");toast("已回填 "+b.dataset.v);
+    });
+  });
+  $("#durationLockBtn").addEventListener("click",()=>{
+    durationLocked=!durationLocked;$("#durationLockBtn").classList.toggle("on",durationLocked);toast(durationLocked?"时长已锁定":"时长已解锁");
+  });
+
+  $("#weekendLockBtn").addEventListener("click",()=>{
+    weekendLocked=!weekendLocked;$("#weekendLockImg").style.visibility=weekendLocked?"hidden":"visible";
+    toast(weekendLocked?"周末模式已锁定":"恢复自动切换");
+  });
+
+  function closeAllSlotDropdowns(except=null){
+    $$(".slotDropdown").forEach(d=>{ if(d!==except)d.classList.remove("open"); });
+  }
+  $$(".slot").forEach((slot,i)=>{
+    const chosen=slot.querySelector(".chosen");
+    const workDD=slot.querySelector(".workDropdown");
+    const whiteDD=slot.querySelector(".whiteDropdown");
+    chosen.textContent=slotTasks[i];
+
+    workDD.innerHTML=Object.keys(taskApps).map(t=>'<button type="button" data-task="'+t+'">'+t+'</button>').join("");
+    function rebuildWhitelist(){
+      const t=slotTasks[i];
+      whiteDD.innerHTML=(taskApps[t]||[]).map(x=>'<button type="button" data-app="'+x+'">'+x+'</button>').join("");
+      whiteDD.querySelectorAll("button").forEach(b=>b.addEventListener("click",e=>{
+        e.stopPropagation();
+        if(window.NativeBridge)NativeBridge.launchApp(b.dataset.app);else toast("打开 "+b.dataset.app);
+        whiteDD.classList.remove("open");
+      }));
+    }
+    rebuildWhitelist();
+
+    workDD.querySelectorAll("button").forEach(b=>b.addEventListener("click",e=>{
+      e.stopPropagation();
+      slotTasks[i]=b.dataset.task;
+      chosen.textContent=b.dataset.task;
+      workDD.classList.remove("open");
+      rebuildWhitelist();
+      if(window.NativeBridge)NativeBridge.setWeekendTask(i,b.dataset.task);toast("该时段："+b.dataset.task);
+    }));
+
+    slot.querySelector(".workBtn").addEventListener("click",e=>{
+      e.stopPropagation();
+      const willOpen=!workDD.classList.contains("open");
+      closeAllSlotDropdowns();
+      if(willOpen)workDD.classList.add("open");
+    });
+
+    slot.querySelector(".whiteBtn").addEventListener("click",e=>{
+      e.stopPropagation();
+      rebuildWhitelist();
+      const willOpen=!whiteDD.classList.contains("open");
+      closeAllSlotDropdowns();
+      if(willOpen)whiteDD.classList.add("open");
+    });
+  });
+  document.addEventListener("click",()=>closeAllSlotDropdowns());
+
+  function fmt(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return [h,m,s].map(x=>String(x).padStart(2,"0")).join(":")}
+  $("#startBtn").addEventListener("click",()=>{
+    const h=hourWheelState.value,m=minuteWheelState.value;
+    secondsLeft=Math.max(1,h*3600+m*60); $("#countdown").textContent=fmt(secondsLeft);
+    renderApps("#focusApps",currentTask);$("#focusState").classList.add("open");if(window.NativeBridge)NativeBridge.startFocus(currentTask,secondsLeft);
+    clearInterval(timer);timer=setInterval(()=>{secondsLeft--;$("#countdown").textContent=fmt(Math.max(0,secondsLeft));if(secondsLeft<=0){clearInterval(timer);$("#focusState").classList.remove("open");if(window.NativeBridge)NativeBridge.finishFocus();toast("本次专注完成")}},1000);
+  });
+  $("#endBtn").addEventListener("click",()=>{
+    if(window.NativeBridge){const left=NativeBridge.endFocusEarly();if(left<0){toast("本周提前结束次数已用完");return}earlyLeft=left;}else{if(earlyLeft<=0){toast("本周提前结束次数已用完");return}earlyLeft--;}
+    clearInterval(timer);$("#focusState").classList.remove("open");$("#endBtn").textContent="提前结束（本周剩余 "+earlyLeft+" 次）";toast("已提前结束");
+  });
+
+  
+  if(window.NativeBridge){
+    try{
+      earlyLeft=NativeBridge.getEarlyRemaining();
+      $("#endBtn").textContent="提前结束（本周剩余 "+earlyLeft+" 次）";
+      if(NativeBridge.isFocusActive()){
+        currentTask=NativeBridge.getFocusTask();
+        secondsLeft=Math.max(1,Math.floor((NativeBridge.getFocusEnd()-Date.now())/1000));
+        $("#countdown").textContent=fmt(secondsLeft);
+        renderApps("#focusApps",currentTask);
+        $("#focusState").classList.add("open");
+        clearInterval(timer);
+        timer=setInterval(()=>{
+          secondsLeft--;
+          $("#countdown").textContent=fmt(Math.max(0,secondsLeft));
+          if(secondsLeft<=0){
+            clearInterval(timer);
+            $("#focusState").classList.remove("open");
+            NativeBridge.finishFocus();
+            toast("本次专注完成");
+          }
+        },1000);
+      }
+    }catch(e){}
+  }
+
+  let cal=new Date(2025,4,1),marks=new Set();
+  function drawCal(){
+    const y=cal.getFullYear(),m=cal.getMonth();$("#month").textContent=`${y}年${m+1}月⌄`;
+    const g=$("#grid");g.innerHTML="";const first=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate();
+    for(let i=0;i<first;i++)g.appendChild(document.createElement("div"));
+    for(let d=1;d<=n;d++){const key=`${y}-${m+1}-${d}`,e=document.createElement("div");e.className="day";const hh=(d*3)%9;
+      e.innerHTML=`<div class="box ${marks.has(key)?"marked":""}"><div class="fill" style="height:${Math.min(100,hh/8*100)}%"></div></div><div class="num">${d}</div>`;
+      e.addEventListener("click",()=>{marks.has(key)?marks.delete(key):marks.add(key);e.querySelector(".box").classList.toggle("marked")});
+      g.appendChild(e);
+    }
+  }
+  $("#prev").addEventListener("click",()=>{cal.setMonth(cal.getMonth()-1);drawCal()});
+  $("#next").addEventListener("click",()=>{cal.setMonth(cal.getMonth()+1);drawCal()});
+  drawCal();
+
+  let x0=null, y0=null;
+  $("#phone").addEventListener("touchstart",e=>{if(e.touches.length!==1)return;x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+  $("#phone").addEventListener("touchend",e=>{
+    if(x0===null)return;const dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;
+    if(Math.abs(dx)>90 && Math.abs(dx)>Math.abs(dy)*1.5)$("#pages").style.transform=dx<0?"translateX(-50%)":"translateX(0)";
+    x0=y0=null;
+  },{passive:true});
+})();
+</script>
+</body></html>
+<style>
+.wheelItem:not(.current){visibility:hidden!important;}
+</style>

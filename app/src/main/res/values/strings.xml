@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">强制日程</string>
-    <string name="accessibility_desc">在锁定时间拦截非白名单应用，让你只能使用当前任务允许的应用。</string>
+    <string name="app_name">ForceFocus</string>
+    <string name="accessibility_desc">专注期间阻止打开非白名单第三方应用，仅根据前台应用包名执行限制。</string>
 </resources>

@@ -1,0 +1,170 @@
+.overlay{position:absolute;z-index:40;inset:0;background:#0004;display:none;place-items:center;padding:28px}
+.overlay.open{display:grid}
+.panel{width:100%;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:20px}
+.panel h3{margin:0 0 16px;font-size:18px}
+.panel button,.panel .row{width:100%;border:0;background:#fff8;border-radius:12px;padding:13px 12px;margin:8px 0;text-align:left}
+.close{float:right!important;width:auto!important;background:transparent!important;margin:-10px!important}
+.taskmenu button{text-align:center}
+.calendar{padding-top:54px}
+.calhead{display:flex;justify-content:space-between;align-items:center;color:var(--green2);font-size:28px}
+.calhead button{border:0;background:transparent;color:var(--green2);font-size:28px;padding:8px}
+.month{text-align:center;font-weight:600;font-size:18px;margin:10px 0 28px}
+.week,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:12px 9px;text-align:center}
+.week{font-size:12px;margin-bottom:16px}
+.day{height:47px;cursor:pointer;position:relative}
+.box{width:30px;height:30px;border:1px solid var(--line);border-radius:6px;background:var(--panel);box-shadow:0 2px 5px #0001;margin:auto;overflow:visible;position:relative}
+.fill{position:absolute;left:0;right:0;bottom:0;background:#8da15a;border-radius:0 0 5px 5px;overflow:hidden}
+.num{font-size:12px;margin-top:4px}
+.box.marked::after{content:"";position:absolute;right:-8px;top:-10px;width:25px;height:21px;z-index:4;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 26'%3E%3Cg fill='none' stroke='%235b7445' stroke-linecap='round'%3E%3Cpath d='M4 22 C10 17 15 12 24 5' stroke-width='1.25'/%3E%3Cpath d='M10 17 L7 9 M13 14 L17 5 M16 11 L25 8 M19 9 L27 3' stroke-width='.75'/%3E%3C/g%3E%3Cg fill='%23667f50'%3E%3Cpath d='M9.7 17.1 C5.7 14.6 4.7 10.7 5.2 7.2 C8.7 9.3 10.7 12.6 9.7 17.1 Z'/%3E%3Cpath d='M12.7 14.5 C12.4 9.7 14.6 6.1 18.2 3.1 C18.2 7.8 16.6 11.5 12.7 14.5 Z'/%3E%3Cpath d='M15.6 11.7 C19.4 8.4 23.4 7.1 27.6 7.5 C24.3 10.8 20.4 12.3 15.6 11.7 Z'/%3E%3Cpath d='M18.7 9.3 C21.5 5.7 25 3.8 29.4 2.8 C27 6.5 23.5 8.8 18.7 9.3 Z'/%3E%3Cpath d='M7.4 19 C4.6 18.3 2.7 16.6 1.3 14.1 C4.2 14.2 6.4 15.6 7.4 19 Z'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;filter:drop-shadow(0 1px 1px rgba(71,76,43,.10))}
+.toast{position:absolute;z-index:70;bottom:110px;left:50%;transform:translateX(-50%);background:#273022df;color:white;padding:9px 14px;border-radius:10px;font-size:13px;display:none;white-space:nowrap}
+.focusstate{position:absolute;z-index:60;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center}
+.focusstate.open{display:flex}
+.focuscircle{width:205px;height:205px;background:var(--green);border-radius:50%;display:grid;place-items:center;color:white;font-size:42px;outline:2px dashed #ded9b8;outline-offset:-10px;box-shadow:var(--shadow)}
+.focusapps{display:flex;gap:12px;margin:34px 0}
+.endbtn{border:1px solid var(--line);background:var(--panel);border-radius:13px;padding:12px 24px;color:var(--green2)}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <div class="pages" id="pages">
+    <section class="page" id="focusPage">
+      <button class="hamb" id="hamb" aria-label="菜单">☰</button>
+      <div class="topmodes">
+        <button class="modebtn active" id="treeBtn"><img src="file:///android_res/drawable/tree_mode.png" alt="常规模式"></button>
+        <button class="modebtn inactive" id="forestBtn"><img src="file:///android_res/drawable/forest_mode.png" alt="周末模式"></button>
+      </div>
+
+      <div id="normalPane">
+        <div class="tasks" id="tasks">
+
+
+
+<svg class="fanSvg" viewBox="0 0 304 164" aria-hidden="true">
+  <defs><path id="fanLabel1" d="M33.652 139.561 A119 119 0 0 1 58.227 78.736" fill="none"/><path id="fanLabel2" d="M78.736 58.227 A119 119 0 0 1 139.561 33.652" fill="none"/><path id="fanLabel3" d="M164.439 33.652 A119 119 0 0 1 225.264 58.227" fill="none"/><path id="fanLabel4" d="M245.773 78.736 A119 119 0 0 1 270.348 139.561" fill="none"/></defs>
+  <path class="fanSeg" d="M10.087 147.044 A142 142 0 0 1 46.473 56.983 L82.144 89.102 A94 94 0 0 0 58.057 148.719 Z"/><path class="fanSeg" d="M56.983 46.473 A142 142 0 0 1 147.044 10.087 L148.719 58.057 A94 94 0 0 0 89.102 82.144 Z"/><path class="fanSeg" d="M156.956 10.087 A142 142 0 0 1 247.017 46.473 L214.898 82.144 A94 94 0 0 0 155.281 58.057 Z"/><path class="fanSeg" d="M257.527 56.983 A142 142 0 0 1 293.913 147.044 L245.943 148.719 A94 94 0 0 0 221.856 89.102 Z"/>
+  <text class="fanText"><textPath href="#fanLabel1" startOffset="50%">简历</textPath></text><text class="fanText"><textPath href="#fanLabel2" startOffset="50%">岗位调研</textPath></text><text class="fanText"><textPath href="#fanLabel3" startOffset="50%">考公</textPath></text><text class="fanText"><textPath href="#fanLabel4" startOffset="50%">磨耳朵</textPath></text>
+</svg>
+          <button class="task" data-task="简历">简历</button>
+          <button class="task" data-task="岗位调研">岗位调研</button>
+          <button class="task" data-task="考公">考公</button>
+          <button class="task" data-task="磨耳朵">磨耳朵</button>
+        </div>
+        <button class="orb" id="orb" aria-label="选择任务"></button>
+        <div class="whitelist" id="normalApps"></div>
+        <div class="bottom">
+          <div class="clockwrap">
+            <div class="duration">
+              <div class="nums">
+                <div class="wheel" id="hourWheel" aria-label="小时"><div class="wheelTrack" id="hourTrack"></div></div>
+                <small>h</small>
+                <div class="wheel" id="minuteWheel" aria-label="分钟"><div class="wheelTrack" id="minuteTrack"></div></div>
+                <small>min</small>
+              </div>
+            </div>
+            <div class="mini">
+              <button id="memoryBtn" title="时长记忆" aria-label="时长记忆">
+                <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                  <path d="M6.8 4.5h10.4v15l-5.2-3.2-5.2 3.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M9.4 8.3h5.2M9.4 11h3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="durationLockBtn" title="锁定时长" aria-label="锁定时长">
+                <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                  <rect x="6.5" y="10.2" width="11" height="9.2" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M9 10.2V7.7a3 3 0 0 1 6 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="12" cy="14.7" r="1" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <button class="start" id="startBtn" aria-label="开始">▶</button>
+        </div>
+      </div>
+
+      <div id="weekendPane">
+        <button class="lockbtn" id="weekendLockBtn"><img id="weekendLockImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%237f984f' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M23 31V22a13 13 0 0 1 26 0v9'/%3E%3Crect x='18' y='30' width='36' height='30' rx='7'/%3E%3C/g%3E%3Cpath d='M36 39c7-8 14-6 16-4-4 7-10 10-16 9-6 1-12-2-16-9 2-2 9-4 16 4Z' fill='%238aa832'/%3E%3C/svg%3E" alt="周末锁"></button>
+        <div class="slot" data-slot="0"><div class="time">09:00 – 11:30</div><div class="chosen"></div><div class="sloticons"><button class="workBtn" title="工作内容">▤</button><button class="whiteBtn" title="白名单">⌘</button></div><div class="slotDropdown workDropdown"></div><div class="slotDropdown whiteDropdown"></div></div>
+        <div class="slot" data-slot="1"><div class="time">13:30 – 17:00</div><div class="chosen"></div><div class="sloticons"><button class="workBtn" title="工作内容">▤</button><button class="whiteBtn" title="白名单">⌘</button></div><div class="slotDropdown workDropdown"></div><div class="slotDropdown whiteDropdown"></div></div>
+        <div class="slot" data-slot="2"><div class="time">19:00 – 21:30</div><div class="chosen"></div><div class="sloticons"><button class="workBtn" title="工作内容">▤</button><button class="whiteBtn" title="白名单">⌘</button></div><div class="slotDropdown workDropdown"></div><div class="slotDropdown whiteDropdown"></div></div>
+      </div>
+    </section>
+
+    <section class="page calendar" id="calendarPage">
+      <div class="calhead"><button id="prev">‹</button><span></span><button id="next">›</button></div>
+      <div class="month" id="month"></div>
+      <div class="week"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+      <div class="grid" id="grid"></div>
+    </section>
+  </div>
+
+  <div class="drawer" id="drawer">
+    <div class="sheet">
+      <button id="settingsBtn">设置</button>
+      <button id="sidebarWhitelistBtn">白名单</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="modal"><div class="panel" id="modalPanel"></div></div>
+
+  <div class="focusstate" id="focusState">
+    <div class="focuscircle" id="countdown">01:00:00</div>
+    <div class="focusapps" id="focusApps"></div>
+    <button class="endbtn" id="endBtn">提前结束（本周剩余 2 次）</button>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+  const taskApps={
+    "简历":["WPS"],
+    "岗位调研":["小红书","WPS"],
+    "考公":["粉笔"],
+    "磨耳朵":["录音机","WPS"]
+  };
+  let currentTask="简历", weekendLocked=false, durationLocked=false;
+  let recent=["01:00","00:45","02:00"];
+  let slotTasks=["简历","岗位调研","考公"];
+  let earlyLeft=2, timer=null, secondsLeft=3600;
+
+  function toast(t){const el=$("#toast");el.textContent=t;el.style.display="block";clearTimeout(window.__t);window.__t=setTimeout(()=>el.style.display="none",1300)}
+  function renderApps(target,task){
+    const el=$(target); el.innerHTML="";
+    (taskApps[task]||[]).forEach(name=>{
+      const b=document.createElement("button");b.className="app";b.textContent=name==="小红书"?"红":name==="录音机"?"录":name==="粉笔"?"粉":"W";
+      b.title=name;b.addEventListener("click",()=>toast("原型：打开 "+name));el.appendChild(b);
+    });
+  }
+  renderApps("#normalApps",currentTask);
+
+  function createLoopWheel(rootSel, trackSel, values, initial){
+    const root=$(rootSel), track=$(trackSel);
+    const state={root,track,values,value:initial,startY:null,lastY:null,lastT:null,accum:0,velocity:0,inertia:null};
+    const fmt=v=>rootSel==="#minuteWheel"?String(v).padStart(2,"0"):String(v);
+
+    function render(offset=0){
+      const i=values.indexOf(state.value), n=values.length;
+      const seq=[-2,-1,0,1,2].map(d=>values[(i+d+n)%n]);
+      track.innerHTML=seq.map((v,j)=>{
+        const cls=j===2?'wheelItem current':(j===1||j===3?'wheelItem near':'wheelItem');
+        return '<div class="'+cls+'">'+fmt(v)+'</div>';
+      }).join("");
+      track.style.transform='translateY(calc(-60px + '+offset+'px))';
+    }
+    function advance(dir,count=1){
+      if(durationLocked){toast("时长已锁定");return}
+      const n=values.length;
+      state.value=(state.value+dir*count+n*1000)%n;
+      render(0);
+    }
+    function stopInertia(){
+      if(state.inertia){cancelAnimationFrame(state.inertia);state.inertia=null}
+    }
+    function fling(v){
+      stopInertia();
+      let vel=v;
+      const tick=()=>{
+        vel*=0.91;
+        if(Math.abs(vel)<0.08){state.inertia=null;render(0);return}

@@ -1,0 +1,170 @@
+        state.accum+=vel*16;
+        while(Math.abs(state.accum)>=10){
+          if(state.accum<0){advance(1);state.accum+=10}
+          else{advance(-1);state.accum-=10}
+        }
+        state.inertia=requestAnimationFrame(tick);
+      };
+      state.inertia=requestAnimationFrame(tick);
+    }
+
+    root.addEventListener("wheel",e=>{
+      e.preventDefault();
+      stopInertia();
+      const count=Math.max(1,Math.min(6,Math.round(Math.abs(e.deltaY)/22)));
+      advance(e.deltaY>0?1:-1,count);
+    },{passive:false});
+
+    function begin(y,t){
+      if(durationLocked){toast("时长已锁定");return false}
+      stopInertia();
+      state.startY=state.lastY=y; state.lastT=t; state.accum=0; state.velocity=0; root.dataset.dragged="0";
+      return true;
+    }
+    function move(y,t){
+      if(state.startY===null)return;
+      const dy=y-state.lastY, dt=Math.max(1,t-state.lastT);
+      state.velocity=0.72*state.velocity+0.28*(dy/dt);
+      state.accum+=dy;
+      state.lastY=y; state.lastT=t;
+      if(Math.abs(y-state.startY)>4)root.dataset.dragged="1";
+      while(Math.abs(state.accum)>=10){
+        if(state.accum<0){advance(1);state.accum+=10}
+        else{advance(-1);state.accum-=10}
+      }
+    }
+    function finish(){
+      if(state.startY===null)return;
+      const v=state.velocity;
+      state.startY=state.lastY=state.lastT=null;
+      state.accum=0;
+      if(Math.abs(v)>.12)fling(v);
+      else render(0);
+    }
+
+    root.addEventListener("touchstart",e=>begin(e.touches[0].clientY,performance.now()),{passive:true});
+    root.addEventListener("touchmove",e=>move(e.touches[0].clientY,performance.now()),{passive:true});
+    root.addEventListener("touchend",finish,{passive:true});
+
+    root.addEventListener("pointerdown",e=>{
+      if(e.pointerType==="touch")return;
+      if(begin(e.clientY,performance.now()))root.setPointerCapture?.(e.pointerId);
+    });
+    root.addEventListener("pointermove",e=>{if(e.pointerType!=="touch")move(e.clientY,performance.now())});
+    root.addEventListener("pointerup",e=>{if(e.pointerType!=="touch")finish()});
+
+    // 单击仍保留快速选择，拖动后不会误触
+    root.addEventListener("click",()=>{
+      if(root.dataset.dragged==="1"){root.dataset.dragged="0";return}
+      if(durationLocked){toast("时长已锁定");return}
+      const isMinute=rootSel==="#minuteWheel";
+      const vals=isMinute?Array.from({length:60},(_,i)=>i):[0,1,2,3,4];
+      const cols=isMinute?6:5;
+      openModal('<button class="close">×</button><h3>'+(isMinute?'选择分钟':'选择小时')+'</h3>'+ 
+        '<div class="quickGrid" style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:7px">'+
+        vals.map(v=>'<button class="quickTime" data-v="'+v+'" style="text-align:center;margin:0;padding:9px 4px">'+
+        (isMinute?String(v).padStart(2,"0"):String(v))+'</button>').join("")+'</div>');
+      $$(".quickTime").forEach(b=>b.onclick=()=>{
+        setWheelValue(state,parseInt(b.dataset.v));
+        $("#modal").classList.remove("open");
+      });
+    });
+
+    state.render=render; render(0); return state;
+  }
+  function setWheelValue(state,v){
+    if(!state.values.includes(v))return;
+    state.value=v; state.render(0);
+  }
+  const hourWheelState=createLoopWheel("#hourWheel","#hourTrack",[0,1,2,3,4],1);
+  const minuteWheelState=createLoopWheel("#minuteWheel","#minuteTrack",Array.from({length:60},(_,i)=>i),0);
+
+
+  function setMode(mode){
+    const normal=mode==="normal";
+    $("#normalPane").style.display=normal?"flex":"none";
+    $("#weekendPane").style.display=normal?"none":"flex";
+    $("#treeBtn").classList.toggle("active",normal); $("#treeBtn").classList.toggle("inactive",!normal);
+    $("#forestBtn").classList.toggle("active",!normal); $("#forestBtn").classList.toggle("inactive",normal);
+  }
+  $("#treeBtn").addEventListener("click",e=>{e.preventDefault();setMode("normal")});
+  $("#forestBtn").addEventListener("click",e=>{e.preventDefault();setMode("weekend")});
+
+  $("#orb").addEventListener("click",()=>$("#tasks").classList.toggle("open"));
+  $$(".task").forEach(b=>b.addEventListener("click",()=>{
+    currentTask=b.dataset.task; $("#tasks").classList.remove("open"); renderApps("#normalApps",currentTask);
+
+  function createLoopWheel(rootSel, trackSel, values, initial){
+    const root=$(rootSel), track=$(trackSel);
+    const state={root,track,values,value:initial,index:initial,startY:null,lastY:null,accum:0};
+    function render(){
+      const prev=(state.value-1+values.length)%values.length;
+      const next=(state.value+1)%values.length;
+      const shown=[prev,state.value,next];
+      track.innerHTML=shown.map(v=>'<div class="wheelItem">'+(rootSel==="#minuteWheel"?String(v).padStart(2,"0"):String(v))+'</div>').join("");
+      track.style.transform="translateY(-58px)";
+    }
+    function step(dir){
+      if(durationLocked){toast("时长已锁定");return}
+      state.value=(state.value+dir+values.length)%values.length;
+      render();
+    }
+    root.addEventListener("wheel",e=>{
+      e.preventDefault();
+      step(e.deltaY>0?1:-1);
+    },{passive:false});
+    root.addEventListener("click",e=>{
+      if(durationLocked){toast("时长已锁定");return}
+      if(root.dataset.dragged==="1"){root.dataset.dragged="0";return}
+      const isMinute=rootSel==="#minuteWheel";
+      const vals=isMinute ? Array.from({length:60},(_,i)=>i) : [0,1,2,3,4];
+      const cols=isMinute ? 6 : 5;
+      openModal(
+        '<button class="close">×</button><h3>'+(isMinute?'选择分钟':'选择小时')+'</h3>'+ 
+        '<div class="quickGrid" style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:7px">'+
+        vals.map(v=>'<button class="quickTime" data-v="'+v+'" style="text-align:center;margin:0;padding:9px 4px">'+
+          (isMinute?String(v).padStart(2,"0"):String(v))+'</button>').join("")+'</div>'
+      );
+      $$(".quickTime").forEach(b=>b.onclick=()=>{
+        setWheelValue(state,parseInt(b.dataset.v));
+        $("#modal").classList.remove("open");
+      });
+    });
+    root.addEventListener("touchstart",e=>{
+      if(durationLocked){toast("时长已锁定");return}
+      state.startY=e.touches[0].clientY; state.lastY=state.startY; state.accum=0;
+      root.classList.add("dragging");
+    },{passive:true});
+    root.addEventListener("touchmove",e=>{
+      if(state.startY===null||durationLocked)return;
+      const y=e.touches[0].clientY;
+      const dy=y-state.lastY;
+      state.accum+=dy;
+      state.lastY=y;
+      if(Math.abs(y-state.startY)>6) root.dataset.dragged="1";
+      while(Math.abs(state.accum)>=12){
+        if(state.accum<0){ state.value=(state.value+1)%values.length; state.accum+=12; }
+        else{ state.value=(state.value-1+values.length)%values.length; state.accum-=12; }
+        render();
+      }
+    },{passive:true});
+    root.addEventListener("touchend",()=>{
+      state.startY=state.lastY=null; state.accum=0; root.classList.remove("dragging"); render();
+    },{passive:true});
+    root.addEventListener("pointerdown",e=>{
+      if(e.pointerType==="touch")return;
+      if(durationLocked){toast("时长已锁定");return}
+      state.startY=e.clientY; state.lastY=e.clientY; state.accum=0; root.setPointerCapture?.(e.pointerId); root.classList.add("dragging");
+    });
+    root.addEventListener("pointermove",e=>{
+      if(state.startY===null||e.pointerType==="touch"||durationLocked)return;
+      const dy=e.clientY-state.lastY; state.accum+=dy; state.lastY=e.clientY; if(Math.abs(e.clientY-state.startY)>6) root.dataset.dragged="1";
+      while(Math.abs(state.accum)>=12){
+        if(state.accum<0){ state.value=(state.value+1)%values.length; state.accum+=12; }
+        else{ state.value=(state.value-1+values.length)%values.length; state.accum-=12; }
+        render();
+      }
+    });
+    root.addEventListener("pointerup",e=>{if(e.pointerType!=="touch"){state.startY=state.lastY=null;state.accum=0;root.classList.remove("dragging");render()}});
+    state.render=render; render(); return state;
+  }
