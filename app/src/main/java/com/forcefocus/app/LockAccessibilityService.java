@@ -11,122 +11,137 @@ import android.widget.*;
 import java.util.*;
 
 public class LockAccessibilityService extends AccessibilityService {
-    WindowManager wm; View overlay; TextView title,time,escapeInfo; LinearLayout apps; Handler handler=new Handler(Looper.getMainLooper());
+    private final int GREEN = Color.parseColor("#8AA832");
+    private final int CREAM = Color.parseColor("#FFFBD3");
+    private final int BROWN = Color.parseColor("#331915");
+
+    WindowManager wm; View overlay; TextView title,time,escapeInfo,allowedInfo; LinearLayout apps; Handler handler=new Handler(Looper.getMainLooper());
     String lastPkg=""; BroadcastReceiver refresh; Typeface kai;
-    int ink=Color.rgb(232,246,236), muted=Color.rgb(171,211,185), stroke=Color.rgb(91,153,113), gold=Color.rgb(211,236,184);
-    Runnable tick=new Runnable(){ public void run(){ enforce(lastPkg); handler.postDelayed(this,1000); } };
+    Runnable tick=new Runnable(){public void run(){enforce(lastPkg); updateTimeOnly(); handler.postDelayed(this,1000);}};
 
     @Override public void onServiceConnected(){
         kai=Typeface.create(Typeface.SERIF, Typeface.NORMAL);
         wm=(WindowManager)getSystemService(WINDOW_SERVICE);
-        refresh=new BroadcastReceiver(){ @Override public void onReceive(Context c,Intent i){ enforce(lastPkg); } };
+        refresh=new BroadcastReceiver(){@Override public void onReceive(Context c,Intent i){enforce(lastPkg);}};
         IntentFilter f=new IntentFilter(LockState.ACTION_REFRESH);
-        if(Build.VERSION.SDK_INT>=33) registerReceiver(refresh,f,Context.RECEIVER_NOT_EXPORTED); else registerReceiver(refresh,f);
+        if(Build.VERSION.SDK_INT>=33)registerReceiver(refresh,f,Context.RECEIVER_NOT_EXPORTED); else registerReceiver(refresh,f);
         handler.post(tick); Scheduler.scheduleNext14Days(this);
     }
-
-    @Override public void onAccessibilityEvent(AccessibilityEvent e){
-        CharSequence p=e.getPackageName(); if(p!=null){ lastPkg=p.toString(); enforce(lastPkg); }
-    }
+    @Override public void onAccessibilityEvent(AccessibilityEvent e){ CharSequence p=e.getPackageName(); if(p!=null){lastPkg=p.toString();enforce(lastPkg);} }
     @Override public void onInterrupt(){}
-    @Override public void onDestroy(){ super.onDestroy(); handler.removeCallbacks(tick); if(refresh!=null)try{ unregisterReceiver(refresh); }catch(Exception ignored){} hide(); }
+    @Override public void onDestroy(){super.onDestroy();handler.removeCallbacks(tick);if(refresh!=null)try{unregisterReceiver(refresh);}catch(Exception ignored){}hide();}
 
     boolean allowed(Mode m,String pkg){
-        if(pkg==null||pkg.isEmpty()) return false;
-        if(pkg.equals(getPackageName())||pkg.equals("com.android.systemui")) return true;
+        if(pkg==null||pkg.isEmpty())return false;
+        if(pkg.equals(getPackageName())||pkg.equals("com.android.systemui"))return true;
         return m.allowed.contains(pkg);
     }
-
     void enforce(String pkg){
         LockState.Session s=LockState.current(this);
-        if(s==null){ hide(); return; }
-        if(allowed(s.mode,pkg)){ hide(); return; }
+        if(s==null){hide();return;}
+        if(allowed(s.mode,pkg)){hide();return;}
         show(s);
     }
-
+    void updateTimeOnly(){
+        if(overlay==null || overlay.getParent()==null) return;
+        LockState.Session s=LockState.current(this);
+        if(s==null) return;
+        time.setText(LockState.timeLeft(s.end));
+        escapeInfo.setText("解除 " + LockState.escapesLeft(this) + "/2");
+    }
     void show(LockState.Session s){
-        if(overlay==null) createOverlay();
-        title.setText(s.mode.title+"\n\n"+s.mode.desc);
-        time.setText("剩余 "+LockState.timeLeft(s.end));
-        escapeInfo.setText("本周解除机会："+LockState.escapesLeft(this)+" / 2");
+        if(overlay==null)createOverlay();
+        title.setText(s.mode.title);
+        time.setText(LockState.timeLeft(s.end));
+        escapeInfo.setText("解除 " + LockState.escapesLeft(this) + "/2");
+        allowedInfo.setText(s.mode.allowed.isEmpty() ? "请去电脑完成" : s.mode.desc);
         populateApps(s.mode);
         if(overlay.getParent()==null){
-            WindowManager.LayoutParams lp=new WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams lp=new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_FULLSCREEN,
                     PixelFormat.TRANSLUCENT);
             lp.gravity=Gravity.TOP|Gravity.START; wm.addView(overlay,lp);
         }
     }
-
-    void hide(){ if(overlay!=null&&overlay.getParent()!=null)try{ wm.removeView(overlay); }catch(Exception ignored){} }
-
-    LinearLayout.LayoutParams matchMargin(){
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0,0,0,12); return lp;
-    }
-
-    TextView t(String s,int sp,int c){
-        TextView v=new TextView(this); v.setText(s); v.setTextSize(sp); v.setTextColor(c); v.setPadding(0,14,0,14); v.setTypeface(kai); return v;
-    }
-
-    Button btn(String s){
-        Button b=new Button(this); b.setText(s); b.setAllCaps(false); b.setTextSize(17); b.setTypeface(kai); b.setPadding(22,18,22,18);
-        GradientDrawableCompat.button(b, Color.rgb(34,89,59), Color.rgb(24,69,47), stroke, ink); return b;
-    }
+    void hide(){if(overlay!=null&&overlay.getParent()!=null)try{wm.removeView(overlay);}catch(Exception ignored){}}
 
     void createOverlay(){
         FrameLayout frame=new FrameLayout(this);
-        frame.addView(new JianghuDecorView(this),new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+        frame.setBackgroundColor(CREAM);
         ScrollView sc=new ScrollView(this);
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setGravity(Gravity.CENTER_HORIZONTAL); root.setPadding(42,86,42,56); root.setBackgroundColor(Color.TRANSPARENT); sc.addView(root);
-        frame.addView(sc,new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(18),dp(18),dp(18),dp(24));
+        sc.addView(root);
+        frame.addView(sc, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
 
-        LinearLayout hero=new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setPadding(28,24,28,24);
-        GradientDrawableCompat.panel(hero,Color.argb(220,24,66,46),Color.argb(190,10,34,24),30,stroke);
-        TextView small=t("竹林有风，杂念止步",15,gold); small.setGravity(Gravity.CENTER); hero.addView(small);
-        title=t("",29,ink); title.setGravity(Gravity.CENTER); hero.addView(title);
-        time=t("",34,ink); time.setGravity(Gravity.CENTER); hero.addView(time);
-        escapeInfo=t("",15,muted); escapeInfo.setGravity(Gravity.CENTER); hero.addView(escapeInfo);
-        root.addView(hero,matchMargin());
+        LinearLayout hero=new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(18),dp(18),dp(18),dp(18));
+        GradientDrawableCompat.bg(hero, GREEN, dp(28));
+        title=t("",34,WHITE(),true);
+        time=t("",40,WHITE(),true);
+        escapeInfo=t("",16,WHITE(),false);
+        hero.addView(title);
+        hero.addView(time);
+        hero.addView(tescapeInfo);
+        root.addView(hero, matchMargin());
 
-        apps=new LinearLayout(this); apps.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout appCard=new LinearLayout(this); appCard.setOrientation(LinearLayout.VERTICAL); appCard.setPadding(24,20,24,20);
-        GradientDrawableCompat.panel(appCard,Color.argb(208,22,62,44),Color.argb(188,10,34,24),24,stroke);
-        appCard.addView(apps,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(appCard,matchMargin());
+        LinearLayout descCard=new LinearLayout(this);
+        descCard.setOrientation(LinearLayout.VERTICAL);
+        descCard.setPadding(dp(18),dp(18),dp(18),dp(18));
+        GradientDrawableCompat.bg(descCard, WHITE(), dp(28));
+        allowedInfo=t("",18,BROWN,false);
+        descCard.addView(allowedInfo);
+        root.addView(descCard, matchMargin());
 
-        Button dial=btn("紧急通话");
-        dial.setOnClickListener(v->{ try{ startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }catch(Exception ignored){} });
-        root.addView(dial,matchMargin());
+        apps=new LinearLayout(this);
+        apps.setOrientation(LinearLayout.VERTICAL);
+        root.addView(apps, matchMargin());
 
-        Button escape=btn("长按 8 秒 · 使用一次提前解除"); root.addView(escape,matchMargin());
+        LinearLayout row=new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        Button dial=actionBtn("通衽", BROWN, WHITE());
+        dial.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(Exception ignored){}});
+        Button escape=actionBtn("提前解除", BROWN, WHITE());
         final Handler h=new Handler(Looper.getMainLooper()); final Runnable[] r=new Runnable[1];
-        r[0]=()->{ LockState.Session s=LockState.current(this); if(s!=null){ boolean ok=LockState.useEscape(this,s.end); Toast.makeText(this,ok?"已解除到本时段结束":"本周 2 次机会已用完",Toast.LENGTH_LONG).show(); enforce(lastPkg); } };
-        escape.setOnTouchListener((v,e)->{
-            if(e.getAction()==MotionEvent.ACTION_DOWN){ h.postDelayed(r[0],8000); escape.setText("继续按住 8 秒…"); return true; }
-            if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL){ h.removeCallbacks(r[0]); escape.setText("长按 8 秒 · 使用一次提前解除"); return true; }
-            return false;
-        });
+        r[0]=()->{LockState.Session s=LockState.current(this); if(s!=null){boolean ok=LockState.useEscape(this,s.end);Toast.makeText(this,ok?"已解除":"本周机会用完",Toast.LENGTH_LONG).show();enforce(lastPkg);}};
+        escape.setOnTouchListener((2,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN){h.postDelayed(r[0],8000);escape.setText("按住 8 秒");return true;} if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL){h.removeCallbacks(r[0]);escape.setText("提前解除");return true;}return false;});
+        row.addView(dial, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        LinearLayout.LayoutParams eL_p=new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        e_lp.setMargins(dp(8),0,0,0);
+        row.addView(escape, e_lp);
+        root.addView(row, matchMargin());
+
         overlay=frame;
     }
 
     void populateApps(Mode m){
         apps.removeAllViews();
-        if(m.allowed.isEmpty()){
-            TextView x=t("允许应用：无（请去电脑完成简历）",16,muted); x.setGravity(Gravity.CENTER); apps.addView(x); return;
-        }
-        apps.addView(t("只能打开：",16,gold));
+        if(m.allowed.isEmpty())return;
+        LinearLayout card=new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18),dp(18),dp(18),dp(18));
+        GradientDrawableCompat.bg(card, BROWN, dp(28));
+        card.addView(t("可用",16,WHITE(),false));
         HashSet<String> seen=new HashSet<>();
         for(String pkg:m.allowed){
-            Intent launch=getPackageManager().getLaunchIntentForPackage(pkg); if(launch==null) continue;
-            String label; try{ label=getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg,0)).toString(); }catch(Exception e){ label=pkg; }
-            if(!seen.add(label)) continue;
-            Button b=btn("打开 "+label); final String p=pkg;
-            b.setOnClickListener(v->{ Intent i=getPackageManager().getLaunchIntentForPackage(p); if(i!=null){ i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i); } });
-            apps.addView(b,matchMargin());
+            Intent launch=getPackageManager().getLaunchIntentForPackage(pkg); if(launch==null)continue;
+            String label;try{label=getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg,0)).toString();}catch(Exception e){label=pkg;}
+            if(!seen.add(label))continue;
+            Button b=actionBtn(label, WHITE(), BROWN);
+            final String p=pkg;
+            b.setOnClickListener(v->{Intent i=getPackageManager().getLaunchIntentForPackage(p);if(i!=null){i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);startActivity(i);}});
+            card.addView(b, matchInner());
         }
-        if(seen.isEmpty()) apps.addView(t("没有检测到对应 App，请确认已安装。",14,Color.rgb(248,186,186)));
+        apps.addView(card, matchMargin());
     }
+
+    TextView t(String s,int sp,int c,boolean bold){TextView v=new TextView(this);v.setText(s);v.setTextSize(sp);v.setTextColor(c);v.setPadding(0,dp(4),0,0);v.setTypeface(kai,bold?Typeface.BOLD:Typeface.NORMAL);return v;}
+    Button actionBtn(String s,int textColor,int bgColor){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextSize(18);b.setTypeface(kai);b.setTextColor(textColor);b.setPadding(dp(10),dp(12),dp(10),dp(12));GradientDrawableCompat.bg(b,bgColor,dp(22));return b;}
+    LinearLayout.LayoutParams matchMargin(){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);lp.setMargins(0,0,0,dp(12));return lp;}
+    LinearLayout.LayoutParams matchInner(){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);lp.setMargins(0,dp(8),0,0);return lp;}
+    int dp(int x){ return (int)(x * getResources().getDisplayMetrics().density); }
+    int WHITE(){ return Color.parseColor("#F8F7E8"); }
 }

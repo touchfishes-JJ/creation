@@ -1,9 +1,9 @@
 <resources>
 <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
     <item name="android:fontFamily">serif</item>
-    <item name="android:colorAccent">#2E6B46</item>
-    <item name="android:navigationBarColor">#071F17</item>
-    <item name="android:statusBarColor">#071F17</item>
-    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:colorAccent">#8AA832</item>
+    <item name="android:navigationBarColor">#FFFBD3</item>
+    <item name="android:statusBarColor">#FFFBD3</item>
+    <item name="android:windowLightStatusBar">true</item>
 </style>
 </resources>
