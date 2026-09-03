@@ -20,7 +20,7 @@ public class FocusOrbView extends View {
 
     public FocusOrbView(Context c){super(c);init();}
     public FocusOrbView(Context c, AttributeSet a){super(c,a);init();}
-    private void init(){ setClickable(true); }
+    private void init(){ setClickable(true); setLongClickable(true); }
 
     public void setLongPressListener(LongPressListener l){listener=l;}
     public void setCenterText(String s){centerText=s==null?"":s;invalidate();}
@@ -28,8 +28,8 @@ public class FocusOrbView extends View {
     public void setCenterTextColor(int c){textColor=c;invalidate();}
 
     @Override protected void onMeasure(int w,int hSpec){
-        int size=Math.min(MeasureSpec.getSize(w), dp(250));
-        if(size<=0) size=dp(250);
+        int size=Math.min(MeasureSpec.getSize(w), dp(240));
+        if(size<=0) size=dp(240);
         setMeasuredDimension(size,size);
     }
 
@@ -38,7 +38,7 @@ public class FocusOrbView extends View {
         float cx=getWidth()/2f, cy=getHeight()/2f, r=Math.min(cx,cy)-dp(2);
         p.setStyle(Paint.Style.FILL); p.setColor(fill); c.drawCircle(cx,cy,r,p);
         if(!centerText.isEmpty()){
-            p.setColor(textColor); p.setTextAlign(Paint.Align.CENTER); p.setTypeface(Typeface.create(Typeface.SERIF,Typeface.BOLD)); p.setTextSize(dp(28));
+            p.setColor(textColor); p.setTextAlign(Paint.Align.CENTER); p.setTypeface(Typeface.create(Typeface.SERIF,Typeface.BOLD)); p.setTextSize(dp(26));
             Paint.FontMetrics fm=p.getFontMetrics();
             c.drawText(centerText,cx,cy-(fm.ascent+fm.descent)/2f,p);
         }
@@ -46,16 +46,18 @@ public class FocusOrbView extends View {
 
     @Override public boolean onTouchEvent(MotionEvent e){
         if(e.getAction()==MotionEvent.ACTION_DOWN){
-            longPress=()->{ if(listener!=null) listener.onLongPress(); };
+            longPress=()->{ if(listener!=null) listener.onLongPress(); performHapticFeedback(0); };
             h.postDelayed(longPress,3000);
             return true;
         }
         if(e.getAction()==MotionEvent.ACTION_UP || e.getAction()==MotionEvent.ACTION_CANCEL){
             if(longPress!=null) h.removeCallbacks(longPress);
+            performClick();
             return true;
         }
         return super.onTouchEvent(e);
     }
 
-    private int dp(int x){return (int)(x*getResources().getDisplayMetrics().density);}
+    @Override public boolean performClick(){ return super.performClick(); }
+    private int dp(int x){return (int)(x*getResources().getDisplayMetrics().density);}    
 }
