@@ -20,27 +20,77 @@ public final class LockState {
         prefs(c).edit().putString("manual_mode",mode.name()).putLong("manual_end",end).putLong("bypass_until",0).apply();
         refresh(c);
     }
-    public static void clearManual(Context c){prefs(c).edit().remove("manual_mode").remove("manual_end").apply();refresh(c);}
-    public static Session current(Context c){
-        long now=System.currentTimeMillis();long bypass=prefs(c).getLong("bypass_until",0);if(now<bypass)return null;
-        long end=prefs(c).getLong("manual_end",0);String m=prefs(c).getString("manual_mode",null);
-        if(m!=null&&now<end){try{return new Session(Mode.valueOf(m),end,"手动");}catch(Exception ignored){}}
-        else if(m!=null)clearManual(c);
-        return weekendSession(now);
+    public static void clearManual(Context c){
+        prefs(c).edit().remove("manual_mode").remove("manual_end").apply(); refresh(c);
     }
-    public static Session weekendSession(long now){
-        Calendar cal=Calendar.getInstance();cal.setTimeInMillis(now);int dow=cal.get(Calendar.DAY_OF_WEEK);if(dow!=Calendar.SATURDAY&&dow!=Calendar.SUNDAY)return null;
-        int minutes=cal.get(Calendar.HOUR_OF_DAY)*60+cal.get(Calendar.MINUTE);int[][] slots={{9*60,11*60+30},{13*60+30,17*60},{19*60,21*60+30}};
-        for(int[] s:slots){if(minutes>=s[0]&&minutes<s[1]){Calendar e=(Calendar)cal.clone();e.set(Calendar.HOUR_OF_DAY,s[1]/60);e.set(Calendar.MINUTE,s[1]%60);e.set(Calendar.SECOND,0);e.set(Calendar.MILLISECOND,0);return new Session(Mode.EXAM,e.getTimeInMillis(),"周末固定");}}
+    public static Session current(Context c){
+        long now=System.currentTimeMillis();
+        long bypass=prefs(c).getLong("bypass_until",0);
+        if(now < bypass) return null;
+        long end=prefs(c).getLong("manual_end",0);
+        String m=prefs(c).getString("manual_mode",null);
+        if(m!=null && now<end){
+            try{return new Session(Mode.valueOf(m),end,"手动");}catch(Exception ignored){}
+        } else if(m!=null) clearManual(c);
+        return weekendSession(c,now);
+    }
+    public static Session weekendSession(Context c,long now){
+        if(!WeekendPrefs.enabled(c)) return null;
+        Calendar cal=Calendar.getInstance(); cal.setTimeInMillis(now);
+        int dow=cal.get(Calendar.DAY_OF_WEEK);
+        if(dow!=Calendar.SATURDAY && dow!=Calendar.SUNDAY) return null;
+        int minutes=cal.get(Calendar.HOUR_OF_DAY)*60+cal.get(Calendar.MINUTE);
+        int[][] slots={{9*60,11*60+30},{13*60+30,17*60},{19*60,21*60+30}};
+        for(int[] s:slots){
+            if(minutes>=s[0] && minutes<s[1]){
+                Calendar e=(Calendar)cal.clone(); e.set(Calendar.HOUR_OF_DAY,s[1]/60); e.set(Calendar.MINUTE,s[1]%60); e.set(Calendar.SECOND,0); e.set(Calendar.MILLISECOND,0);
+                return new Session(Mode.EXAM,e.getTimeInMillis(),"周末固定");
+            }
+        }
         return null;
     }
     public static String nextWeekendText(){
-        Calendar c=Calendar.getInstance();long now=System.currentTimeMillis();for(int day=0;day<8;day++){Calendar d=(Calendar)c.clone();d.add(Calendar.DAY_OF_YEAR,day);int dow=d.get(Calendar.DAY_OF_WEEK);if(dow==Calendar.SATURDAY||dow==Calendar.SUNDAY){int[][] starts={{9,0},{13,30},{19,0}};for(int[] st:starts){Calendar x=(Calendar)d.clone();x.set(Calendar.HOUR_OF_DAY,st[0]);x.set(Calendar.MINUTE,st[1]);x.set(Calendar.SECOND,0);x.set(Calendar.MILLISECOND,0);if(x.getTimeInMillis()>now)return new SimpleDateFormat("E HH:mm",Locale.CHINA).format(x.getTime());}}}return "--";
+        Calendar c=Calendar.getInstance(); long now=System.currentTimeMillis();
+        for(int day=0;day<8;day++){
+            Calendar d=(Calendar)c.clone(); d.add(Calendar.DAY_OF_YEAR,day);
+            int dow=d.get(Calendar.DAY_OF_WEEK);
+            if(dow==Calendar.SATURDAY||dow==Calendar.SUNDAY){
+                int[][] starts={{9,0},{13,30},{19,0}};
+                for(int[] st:starts){
+                    Calendar x=(Calendar)d.clone(); x.set(Calendar.HOUR_OF_DAY,st[0]);x.set(Calendar.MINUTE,st[1]);x.set(Calendar.SECOND,0);x.set(Calendar.MILLISECOND,0);
+                    if(x.getTimeInMillis()>now){
+                        return new SimpleDateFormat("E HH:mm",Locale.CHINA).format(x.getTime());
+                    }
+                }
+            }
+        }
+        return "--";
     }
-    static String weekKey(){Calendar c=Calendar.getInstance();return c.getWeekYear()+"-"+c.get(Calendar.WEEK_OF_YEAR);}
-    public static int escapesLeft(Context c){SharedPreferences p=prefs(c);String wk=weekKey();if(!wk.equals(p.getString("escape_week",""))){p.edit().putString("escape_week",wk).putInt("escapes",2).apply();return 2;}return p.getInt("escapes",2);}
-    public static boolean useEscape(Context c,long sessionEnd){int n=escapesLeft(c);if(n<=0)return false;prefs(c).edit().putInt("escapes",n-1).putLong("bypass_until",sessionEnd).apply();refresh(c);return true;}
-    public static void refresh(Context c){c.sendBroadcast(new Intent(ACTION_REFRESH).setPackage(c.getPackageName()));}
-    public static String timeLeftShort(long end){long ms=Math.max(0,end-System.currentTimeMillis());long total=ms/1000;long h=total/3600,m=(total%3600)/60,s=total%60;if(h>0)return String.format(Locale.CHINA,"%02d:%02d:%02d",h,m,s);return String.format(Locale.CHINA,"%02d:%02d",m,s);}
-    public static String timeLeft(long end){long ms=Math.max(0,end-System.currentTimeMillis());long total=ms/1000;long h=total/3600,m=(total%3600)/60,s=total%60;return String.format(Locale.CHINA,"%02d:%02d:%02d",h,m,s);}
+    static String weekKey(){
+        Calendar c=Calendar.getInstance(); return c.getWeekYear()+"-"+c.get(Calendar.WEEK_OF_YEAR);
+    }
+    public static int escapesLeft(Context c){
+        SharedPreferences p=prefs(c); String wk=weekKey();
+        if(!wk.equals(p.getString("escape_week",""))){
+            p.edit().putString("escape_week",wk).putInt("escapes",2).apply(); return 2;
+        }
+        return p.getInt("escapes",2);
+    }
+    public static boolean useEscape(Context c, long sessionEnd){
+        int n=escapesLeft(c); if(n<=0)return false;
+        prefs(c).edit().putInt("escapes",n-1).putLong("bypass_until",sessionEnd).apply(); refresh(c); return true;
+    }
+    public static void refresh(Context c){ c.sendBroadcast(new Intent(ACTION_REFRESH).setPackage(c.getPackageName())); }
+    public static String timeLeftShort(long end){
+        long ms=Math.max(0,end-System.currentTimeMillis()); long total=ms/1000;
+        long h=total/3600, m=(total%3600)/60, s=total%60;
+        if(h>0) return String.format(Locale.CHINA,"%02d:%02d:%02d",h,m,s);
+        return String.format(Locale.CHINA,"%02d:%02d",m,s);
+    }
+
+    public static String timeLeft(long end){
+        long ms=Math.max(0,end-System.currentTimeMillis()); long total=ms/1000;
+        long h=total/3600, m=(total%3600)/60, s=total%60;
+        return String.format(Locale.CHINA,"%02d:%02d:%02d",h,m,s);
+    }
 }
