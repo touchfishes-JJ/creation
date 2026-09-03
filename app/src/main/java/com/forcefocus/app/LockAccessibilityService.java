@@ -17,7 +17,9 @@ public class LockAccessibilityService extends AccessibilityService {
 
     WindowManager wm; View overlay; TextView title,time,escapeInfo,allowedInfo; LinearLayout apps; Handler handler=new Handler(Looper.getMainLooper());
     String lastPkg=""; BroadcastReceiver refresh; Typeface kai;
-    Runnable tick=new Runnable(){public void run(){enforce(lastPkg); updateTimeOnly(); handler.postDelayed(this,1000);}};
+    Runnable tick=new Runnable(){public void run(){StudyStats.tick(thisService());enforce(lastPkg); updateTimeOnly(); handler.postDelayed(this,1000);}};
+
+    private LockAccessibilityService thisService(){return this;}
 
     @Override public void onServiceConnected(){
         kai=Typeface.create(Typeface.SERIF, Typeface.NORMAL);

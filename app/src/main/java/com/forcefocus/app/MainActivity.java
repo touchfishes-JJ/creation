@@ -11,325 +11,143 @@ import android.os.*;
 import android.provider.Settings;
 import android.view.*;
 import android.widget.*;
+import java.util.*;
 
 public class MainActivity extends Activity {
-    private Typeface kai;
-    private final int GREEN = Color.parseColor("#8AA832");
-    private final int CREAM = Color.parseColor("#FFFBD3");
-    private final int BROWN = Color.parseColor("#331915");
-    private final int WHITE = Color.parseColor("#F8F7E8");
+    private final int GREEN=Color.parseColor("#8AA832");
+    private final int CREAM=Color.parseColor("#FFFBD3");
+    private final int BROWN=Color.parseColor("#331915");
 
-    private Mode selectedMode = Mode.RESUME;
-    private int selectedMinutes = 25;
-
-    private TextView currentTask;
-    private TextView currentTime;
-    private TextView nextWeekend;
-    private TextView selectedTaskView;
-    private TextView allowedView;
-    private Button tabSettings;
-    private Button tabFocus;
-    private LinearLayout pageSettings;
-    private LinearLayout pageFocus;
+    private FrameLayout root, focusPage;
+    private LinearLayout calendarPage, radial;
+    private FocusOrbView orb;
+    private NumberPicker hourPicker, minutePicker;
+    private Mode selectedMode=Mode.RESUME;
+    private int shownYear, shownMonth;
+    private GridLayout dayGrid;
+    private TextView monthText;
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private final Runnable tick=new Runnable(){ public void run(){ refreshOrb(); handler.postDelayed(this,1000); } };
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
-        kai = Typeface.create(Typeface.SERIF, Typeface.NORMAL);
-        build();
-        requestBasics();
-        Scheduler.scheduleNext14Days(this);
-        update();
+        Calendar now=Calendar.getInstance(); shownYear=now.get(Calendar.YEAR); shownMonth=now.get(Calendar.MONTH);
+        build(); requestBasics(); Scheduler.scheduleNext14Days(this); handler.post(tick);
     }
-
-    @Override public void onResume(){
-        super.onResume();
-        update();
-    }
+    @Override protected void onDestroy(){super.onDestroy();handler.removeCallbacks(tick);}
+    @Override protected void onResume(){super.onResume();refreshOrb();renderCalendar();}
 
     private void build(){
-        ScrollView sc = new ScrollView(this);
-        sc.setFillViewport(true);
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(18), dp(18), dp(18), dp(22));
-        root.setBackgroundColor(CREAM);
-        sc.addView(root, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        setContentView(sc);
-
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setOrientation(LinearLayout.HORIZONTAL);
-        tabs.setPadding(dp(6), dp(6), dp(6), dp(6));
-        GradientDrawableCompat.bg(tabs, GREEN, dp(22));
-        root.addView(tabs, matchWrap(0,0,0,dp(14)));
-
-        tabSettings = tabBtn("任务设置");
-        tabFocus = tabBtn("专注");
-        tabs.addView(tabSettings, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        LinearLayout.LayoutParams t2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        t2.setMargins(dp(6),0,0,0);
-        tabs.addView(tabFocus, t2);
-
-        pageSettings = new LinearLayout(this);
-        pageSettings.setOrientation(LinearLayout.VERTICAL);
-        root.addView(pageSettings);
-
-        pageFocus = new LinearLayout(this);
-        pageFocus.setOrientation(LinearLayout.VERTICAL);
-        root.addView(pageFocus);
-
-        buildSettingsPage();
-        buildFocusPage();
-
-        tabSettings.setOnClickListener(v -> showPage(true));
-        tabFocus.setOnClickListener(v -> showPage(false));
-        showPage(true);
-    }
-
-    private void buildSettingsPage(){
-        pageSettings.removeAllViews();
-
-        LinearLayout permCard = card(GREEN, WHITE);
-        permCard.addView(label("权限", WHITE, 16));
-        Button access = miniBtn("无障碍", WHITE, BROWN);
-        access.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        Button alarm = miniBtn("闹钟", WHITE, BROWN);
-        alarm.setOnClickListener(v -> {
-            if(Build.VERSION.SDK_INT >= 31){
-                try{ startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:"+getPackageName()))); }
-                catch (Exception e){ startActivity(new Intent(Settings.ACTION_SETTINGS)); }
-            }
-        });
-        LinearLayout permRow = new LinearLayout(this);
-        permRow.setOrientation(LinearLayout.HORIZONTAL);
-        permRow.addView(access, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        LinearLayout.LayoutParams alarmLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        alarmLp.setMargins(dp(8),0,0,0);
-        permRow.addView(alarm, alarmLp);
-        permCard.addView(permRow, matchWrap(0,dp(8),0,0));
-        pageSettings.addView(permCard, matchWrap(0,0,0,dp(12)));
-
-        LinearLayout taskCard = card(WHITE, BROWN);
-        taskCard.addView(label("任务", BROWN, 16));
-        taskCard.addView(modeOption(Mode.RESUME));
-        taskCard.addView(modeOption(Mode.JOB));
-        taskCard.addView(modeOption(Mode.EXAM));
-        taskCard.addView(modeOption(Mode.AUDIO));
-        pageSettings.addView(taskCard, matchWrap(0,0,0,dp(12)));
-
-        LinearLayout durationCard = card(BROWN, WHITE);
-        durationCard.addView(label("时长", WHITE, 16));
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        Button b25 = durationBtn(25, BROWN, CREAM);
-        Button b60 = durationBtn(60, BROWN, CREAM);
-        Button b90 = durationBtn(90, BROWN, CREAM);
-        row.addView(b25, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        LinearLayout.LayoutParams mid = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        mid.setMargins(dp(8),0,dp(8),0);
-        row.addView(b60, mid);
-        row.addView(b90, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        durationCard.addView(row, matchWrap(0,dp(8),0,0));
-        pageSettings.addView(durationCard, matchWrap(0,0,0,dp(12)));
-
-        LinearLayout fixedCard = card(GREEN, WHITE);
-        fixedCard.addView(label("周末自动", WHITE, 16));
-        fixedCard.addView(text("09:00–11:30\n13:30–17:00\n19:00–21:30", 22, WHITE, true));
-        fixedCard.addView(text("模式：考公专业课", 14, WHITE, false));
-        pageSettings.addView(fixedCard, matchWrap(0,0,0,dp(12)));
+        root=new FrameLayout(this); root.setBackgroundColor(CREAM); setContentView(root);
+        buildFocusPage(); buildCalendarPage(); showFocus();
     }
 
     private void buildFocusPage(){
-        pageFocus.removeAllViews();
+        focusPage=new FrameLayout(this); focusPage.setBackgroundColor(CREAM); root.addView(focusPage,full());
 
-        LinearLayout currentCard = card(GREEN, WHITE);
-        currentCard.addView(label("当前", WHITE, 16));
-        currentTask = text("未开始", 28, WHITE, true);
-        currentTime = text("00:00:00", 34, WHITE, true);
-        nextWeekend = text("", 14, WHITE, false);
-        currentCard.addView(currentTask);
-        currentCard.addView(currentTime);
-        currentCard.addView(nextWeekend);
-        pageFocus.addView(currentCard, matchWrap(0,0,0,dp(12)));
+        IconButtonView access=new IconButtonView(this,IconButtonView.ACCESS); access.setColors(BROWN,Color.TRANSPARENT);
+        FrameLayout.LayoutParams aLp=new FrameLayout.LayoutParams(dp(48),dp(48));aLp.gravity=Gravity.TOP|Gravity.START;aLp.setMargins(dp(18),dp(18),0,0);focusPage.addView(access,aLp);
+        access.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
 
-        LinearLayout selectedCard = card(WHITE, BROWN);
-        selectedCard.addView(label("本次专注", BROWN, 16));
-        selectedTaskView = text("简历相关 · 25 分钟", 24, BROWN, true);
-        allowedView = text("手机锁住", 14, BROWN, false);
-        selectedCard.addView(selectedTaskView);
-        selectedCard.addView(allowedView);
-        pageFocus.addView(selectedCard, matchWrap(0,0,0,dp(12)));
+        IconButtonView alarm=new IconButtonView(this,IconButtonView.ALARM); alarm.setColors(BROWN,Color.TRANSPARENT);
+        FrameLayout.LayoutParams alLp=new FrameLayout.LayoutParams(dp(48),dp(48));alLp.gravity=Gravity.TOP|Gravity.END;alLp.setMargins(0,dp(18),dp(18),0);focusPage.addView(alarm,alLp);
+        alarm.setOnClickListener(v->{if(Build.VERSION.SDK_INT>=31){try{startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_SETTINGS));}}});
 
-        Button startBtn = bigBtn("开始专注", BROWN, WHITE);
-        startBtn.setOnClickListener(v -> {
-            LockState.startManual(this, selectedMode, selectedMinutes);
-            Toast.makeText(this, "已开始", Toast.LENGTH_SHORT).show();
-            showPage(false);
-            update();
-        });
-        pageFocus.addView(startBtn, matchWrap(0,0,0,dp(10)));
+        orb=new FocusOrbView(this); orb.setFill(GREEN); orb.setCenterTextColor(CREAM);
+        FrameLayout.LayoutParams orbLp=new FrameLayout.LayoutParams(dp(250),dp(250));orbLp.gravity=Gravity.CENTER;orbLp.setMargins(0,0,0,dp(36));focusPage.addView(orb,orbLp);
+        orb.setLongPressListener(this::showRadial);
+
+        radial=new LinearLayout(this); radial.setOrientation(LinearLayout.VERTICAL); radial.setGravity(Gravity.CENTER); radial.setVisibility(View.GONE);
+        FrameLayout.LayoutParams rlp=new FrameLayout.LayoutParams(dp(360),dp(360));rlp.gravity=Gravity.CENTER;rlp.setMargins(0,0,0,dp(36));focusPage.addView(radial,rlp);
+        buildRadialMenu();
+
+        LinearLayout bottom=new LinearLayout(this);bottom.setOrientation(LinearLayout.VERTICAL);bottom.setPadding(dp(18),0,dp(18),dp(12));
+        FrameLayout.LayoutParams bLp=new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);bLp.gravity=Gravity.BOTTOM;focusPage.addView(bottom,bLp);
+
+        LinearLayout controls=new LinearLayout(this);controls.setOrientation(LinearLayout.HORIZONTAL);controls.setGravity(Gravity.CENTER_VERTICAL);
+        hourPicker=picker(0,12,0);minutePicker=picker(0,59,25);
+        controls.addView(hourPicker,new LinearLayout.LayoutParams(dp(56),dp(66)));
+        controls.addView(unit("h"),new LinearLayout.LayoutParams(dp(22),dp(48)));
+        controls.addView(minutePicker,new LinearLayout.LayoutParams(dp(56),dp(66)));
+        controls.addView(unit("min"),new LinearLayout.LayoutParams(dp(42),dp(48)));
+        Space space=new Space(this);controls.addView(space,new LinearLayout.LayoutParams(0,1,1));
+        IconButtonView start=new IconButtonView(this,IconButtonView.PLAY);start.setColors(CREAM,GREEN);controls.addView(start,new LinearLayout.LayoutParams(dp(58),dp(58)));
+        start.setOnClickListener(v->startFocus());
+        bottom.addView(controls,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        bottom.addView(navBar(true),new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(52)));
     }
 
-    private LinearLayout modeOption(Mode mode){
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(16), dp(14), dp(16), dp(14));
-        GradientDrawableCompat.bg(box, CREAM, dp(18));
-        box.addView(text(mode.title, 20, BROWN, true));
-        box.addView(text(mode.desc, 13, BROWN, false));
-        box.setOnClickListener(v -> { selectedMode = mode; updateSelection(); });
-        LinearLayout.LayoutParams lp = matchWrap(0,0,0,dp(8));
-        box.setLayoutParams(lp);
-        return box;
+    private void buildRadialMenu(){
+        radial.removeAllViews();
+        Space topSpace=new Space(this);radial.addView(topSpace,new LinearLayout.LayoutParams(1,dp(6)));
+        Button top=modeButton("简历",Mode.RESUME);radial.addView(top,centerWrap());
+        LinearLayout mid=new LinearLayout(this);mid.setOrientation(LinearLayout.HORIZONTAL);mid.setGravity(Gravity.CENTER_VERTICAL);
+        Button left=modeButton("磨耳朵",Mode.AUDIO);Button right=modeButton("岗位调研",Mode.JOB);
+        mid.addView(left,new LinearLayout.LayoutParams(dp(105),dp(52)));
+        Space mspace=new Space(this);mid.addView(mspace,new LinearLayout.LayoutParams(dp(142),1));
+        mid.addView(right,new LinearLayout.LayoutParams(dp(105),dp(52)));
+        radial.addView(mid,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(160)));
+        Button bottom=modeButton("考公",Mode.EXAM);radial.addView(bottom,centerWrap());
+        radial.bringToFront();
     }
 
-    private Button durationBtn(int minutes, int bg, int fg){
-        Button b = miniBtn(String.valueOf(minutes), fg, bg);
-        b.setOnClickListener(v -> { selectedMinutes = minutes; updateSelection(); });
-        return b;
+    private Button modeButton(String text,Mode mode){
+        Button b=new Button(this);b.setText(text);b.setTextSize(15);b.setAllCaps(false);b.setTypeface(Typeface.create(Typeface.SERIF,Typeface.BOLD));b.setTextColor(CREAM);b.setPadding(dp(8),0,dp(8),0);GradientDrawableCompat.bg(b,GREEN,dp(26));
+        b.setOnClickListener(v->{selectedMode=mode;radial.setVisibility(View.GONE);orb.setVisibility(View.VISIBLE);});return b;
+    }
+    private LinearLayout.LayoutParams centerWrap(){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(105),dp(52));lp.gravity=Gravity.CENTER_HORIZONTAL;return lp;}
+    private void showRadial(){orb.setVisibility(View.VISIBLE);radial.setVisibility(View.VISIBLE);radial.bringToFront();}
+
+    private void startFocus(){
+        int mins=hourPicker.getValue()*60+minutePicker.getValue();if(mins<=0)mins=25;
+        LockState.startManual(this,selectedMode,mins);radial.setVisibility(View.GONE);refreshOrb();
+    }
+    private void refreshOrb(){
+        if(orb==null)return;LockState.Session s=LockState.current(this);
+        if(s==null){orb.setCenterText("");}
+        else{orb.setCenterText(LockState.timeLeftShort(s.end));}
     }
 
-    private void showPage(boolean settings){
-        pageSettings.setVisibility(settings ? View.VISIBLE : View.GONE);
-        pageFocus.setVisibility(settings ? View.GONE : View.VISIBLE);
-        styleTab(tabSettings, settings);
-        styleTab(tabFocus, !settings);
-        updateSelection();
+    private void buildCalendarPage(){
+        calendarPage=new LinearLayout(this);calendarPage.setOrientation(LinearLayout.VERTICAL);calendarPage.setPadding(dp(16),dp(18),dp(16),dp(12));calendarPage.setBackgroundColor(CREAM);root.addView(calendarPage,full());
+        LinearLayout head=new LinearLayout(this);head.setOrientation(LinearLayout.HORIZONTAL);head.setGravity(Gravity.CENTER_VERTICAL);
+        Button prev=arrow("‹");Button next=arrow("›");monthText=new TextView(this);monthText.setTextColor(BROWN);monthText.setTextSize(18);monthText.setGravity(Gravity.CENTER);monthText.setTypeface(Typeface.create(Typeface.SERIF,Typeface.BOLD));
+        head.addView(prev,new LinearLayout.LayoutParams(dp(48),dp(48)));head.addView(monthText,new LinearLayout.LayoutParams(0,dp(48),1));head.addView(next,new LinearLayout.LayoutParams(dp(48),dp(48)));calendarPage.addView(head);
+        prev.setOnClickListener(v->moveMonth(-1));next.setOnClickListener(v->moveMonth(1));
+
+        dayGrid=new GridLayout(this);dayGrid.setColumnCount(7);dayGrid.setUseDefaultMargins(false);calendarPage.addView(dayGrid,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1));
+        calendarPage.addView(navBar(false),new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(52)));
+        renderCalendar();
     }
 
-    private void updateSelection(){
-        if(selectedTaskView != null){
-            selectedTaskView.setText(selectedMode.title + " · " + selectedMinutes + " 分钟");
+    private void renderCalendar(){
+        if(dayGrid==null)return;dayGrid.removeAllViews();monthText.setText(String.format(Locale.CHINA,"%04d·%02d",shownYear,shownMonth+1));
+        Calendar c=Calendar.getInstance();c.set(shownYear,shownMonth,1);int firstDow=c.get(Calendar.DAY_OF_WEEK);int blanks=(firstDow+5)%7;int max=c.getActualMaximum(Calendar.DAY_OF_MONTH);
+        for(int i=0;i<blanks;i++)addBlank();
+        for(int day=1;day<=max;day++){
+            long ms=StudyStats.millisFor(this,shownYear,shownMonth,day);float fraction=Math.min(1f,ms/(8f*60f*60f*1000f));boolean marked=StudyStats.marked(this,shownYear,shownMonth,day);
+            CalendarDayView v=new CalendarDayView(this);v.setData(day,fraction,marked);final int d=day;v.setOnClickListener(x->{StudyStats.toggleMark(this,shownYear,shownMonth,d);renderCalendar();});addDay(v);
         }
-        if(allowedView != null){
-            String extra = selectedMode.allowed.isEmpty() ? "手机锁住" : selectedMode.desc;
-            allowedView.setText(extra);
-        }
-
-        if(pageSettings != null){
-            for(int i=0;i<pageSettings.getChildCount();i++){
-                View child = pageSettings.getChildAt(i);
-                if(!(child instanceof LinearLayout)) continue;
-                LinearLayout ll=(LinearLayout)child;
-                if(ll.getChildCount()>1 && ll.getChildAt(0) instanceof TextView){
-                    CharSequence head=((TextView)ll.getChildAt(0)).getText();
-                    if("任务".contentEquals(head)){
-                        for(int j=1;j<ll.getChildCount();j++){
-                            View v=ll.getChildAt(j);
-                            if(v instanceof LinearLayout){
-                                LinearLayout item=(LinearLayout)v;
-                                TextView title=(TextView)item.getChildAt(0);
-                                boolean on=title.getText().toString().equals(selectedMode.title);
-                                GradientDrawableCompat.bg(item, on ? GREEN : CREAM, dp(18));
-                                ((TextView)item.getChildAt(0)).setTextColor(on ? WHITE : BROWN);
-                                if(item.getChildCount()>1) ((TextView)item.getChildAt(1)).setTextColor(on ? WHITE : BROWN);
-                            }
-                        }
-                    }
-                    if("时长".contentEquals(head)){
-                        LinearLayout row=(LinearLayout)ll.getChildAt(1);
-                        for(int j=0;j<row.getChildCount();j++){
-                            Button b=(Button)row.getChildAt(j);
-                            boolean on=Integer.parseInt(b.getText().toString())==selectedMinutes;
-                            GradientDrawableCompat.button(b, on ? GREEN : CREAM, on ? GREEN : CREAM, BROWN, on ? WHITE : BROWN);
-                        }
-                    }
-                }
-            }
-        }
+        int cells=blanks+max;while(cells%7!=0){addBlank();cells++;}
     }
+    private void addBlank(){View v=new View(this);addDay(v);}
+    private void addDay(View v){GridLayout.LayoutParams lp=new GridLayout.LayoutParams();lp.width=0;lp.height=0;lp.columnSpec=GridLayout.spec(GridLayout.UNDEFINED,1,1f);lp.rowSpec=GridLayout.spec(GridLayout.UNDEFINED,1,1f);lp.setMargins(dp(3),dp(3),dp(3),dp(3));dayGrid.addView(v,lp);}
+    private void moveMonth(int d){shownMonth+=d;if(shownMonth<0){shownMonth=11;shownYear--;}if(shownMonth>11){shownMonth=0;shownYear++;}renderCalendar();}
 
-    private void update(){
-        LockState.Session s = LockState.current(this);
-        if(currentTask == null) return;
-        if(s == null){
-            currentTask.setText("未开始");
-            currentTime.setText(String.format("%02d:00", selectedMinutes));
-        } else {
-            currentTask.setText(s.mode.title);
-            currentTime.setText(LockState.timeLeft(s.end));
-        }
-        nextWeekend.setText("下次自动：" + LockState.nextWeekendText() + "   解除：" + LockState.escapesLeft(this) + "/2");
-        updateSelection();
+    private LinearLayout navBar(boolean focusActive){
+        LinearLayout nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);nav.setGravity(Gravity.CENTER);
+        IconButtonView f=new IconButtonView(this,IconButtonView.FOCUS);f.setColors(focusActive?CREAM:BROWN,focusActive?GREEN:Color.TRANSPARENT);
+        IconButtonView cal=new IconButtonView(this,IconButtonView.CALENDAR);cal.setColors(!focusActive?CREAM:BROWN,!focusActive?GREEN:Color.TRANSPARENT);
+        f.setOnClickListener(v->showFocus());cal.setOnClickListener(v->showCalendar());nav.addView(f);nav.addView(cal);return nav;
     }
+    private void showFocus(){focusPage.setVisibility(View.VISIBLE);calendarPage.setVisibility(View.GONE);}
+    private void showCalendar(){focusPage.setVisibility(View.GONE);calendarPage.setVisibility(View.VISIBLE);renderCalendar();}
 
-    private Button tabBtn(String s){
-        Button b = new Button(this);
-        b.setAllCaps(false);
-        b.setText(s);
-        b.setTypeface(kai);
-        b.setTextSize(18);
-        b.setPadding(dp(8), dp(12), dp(8), dp(12));
-        return b;
-    }
-
-    private void styleTab(Button b, boolean active){
-        GradientDrawableCompat.bg(b, active ? CREAM : GREEN, dp(18));
-        b.setTextColor(active ? BROWN : WHITE);
-    }
-
-    private LinearLayout card(int bg, int text){
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(18), dp(18), dp(18), dp(18));
-        GradientDrawableCompat.bg(box, bg, dp(28));
-        return box;
-    }
-
-    private TextView label(String s, int color, int sp){
-        TextView v = new TextView(this);
-        v.setText(s);
-        v.setTextColor(color);
-        v.setTextSize(sp);
-        v.setTypeface(kai, Typeface.BOLD);
-        return v;
-    }
-
-    private TextView text(String s, int sp, int color, boolean bold){
-        TextView v = new TextView(this);
-        v.setText(s);
-        v.setTextColor(color);
-        v.setTextSize(sp);
-        v.setTypeface(kai, bold ? Typeface.BOLD : Typeface.NORMAL);
-        v.setPadding(0, dp(6), 0, 0);
-        return v;
-    }
-
-    private Button miniBtn(String s, int bgText, int fgBg){
-        Button b = new Button(this);
-        b.setAllCaps(false);
-        b.setText(s);
-        b.setTextColor(bgText);
-        b.setTypeface(kai);
-        b.setTextSize(16);
-        b.setPadding(dp(10), dp(10), dp(10), dp(10));
-        GradientDrawableCompat.bg(b, fgBg, dp(18));
-        return b;
-    }
-
-    private Button bigBtn(String s, int bg, int fg){
-        Button b = new Button(this);
-        b.setAllCaps(false);
-        b.setText(s);
-        b.setTextColor(fg);
-        b.setTypeface(kai, Typeface.BOLD);
-        b.setTextSize(24);
-        b.setPadding(dp(16), dp(16), dp(16), dp(16));
-        GradientDrawableCompat.bg(b, bg, dp(28));
-        return b;
-    }
-
-    private LinearLayout.LayoutParams matchWrap(int l, int t, int r, int b){
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(l, t, r, b);
-        return lp;
-    }
-
-    private int dp(int x){ return (int)(x * getResources().getDisplayMetrics().density); }
-
-    private void requestBasics(){
-        if(Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED){
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 5);
-        }
-    }
+    private NumberPicker picker(int min,int max,int value){NumberPicker p=new NumberPicker(this);p.setMinValue(min);p.setMaxValue(max);p.setValue(value);p.setWrapSelectorWheel(true);p.setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);return p;}
+    private TextView unit(String s){TextView t=new TextView(this);t.setText(s);t.setTextColor(BROWN);t.setTextSize(18);t.setGravity(Gravity.CENTER);t.setTypeface(Typeface.create(Typeface.SERIF,Typeface.NORMAL));return t;}
+    private Button arrow(String s){Button b=new Button(this);b.setText(s);b.setTextSize(28);b.setTextColor(BROWN);b.setBackgroundColor(Color.TRANSPARENT);b.setAllCaps(false);return b;}
+    private FrameLayout.LayoutParams full(){return new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT);}
+    private int dp(float x){return (int)(x*getResources().getDisplayMetrics().density);}
+    private void requestBasics(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},5);}
 }
